@@ -1,48 +1,83 @@
 <?php
-include 'db.php';
+session_start();
+require_once 'database.php';
+
+// Check connection
+if (!isset($conn) || !$conn) {
+    die("Database connection failed");
+}
 
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['name'] ?? '');
+    $username = trim($_POST['username'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
+    $role = $_POST['role'] ?? 'user';
     
     // Validation
-    if (empty($name) || empty($email) || empty($password)) {
+    if (empty($username) || empty($email) || empty($password)) {
         $error = "All fields are required";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "Invalid email format";
-    } elseif (strlen($password) < 6) {
-        $error = "Password must be at least 6 characters";
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match";
+    } elseif (strlen($password) < 6) {
+        $error = "Password must be at least 6 characters";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Invalid email format";
     } else {
         // Check if email exists
-        $stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ?");
-        mysqli_stmt_bind_param($stmt, "s", $email);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_store_result($stmt);
+        $check_stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ?");
         
-        if (mysqli_stmt_num_rows($stmt) > 0) {
+        if (!$check_stmt) {
+            die("Prepare failed: " . mysqli_error($conn));
+        }
+        
+        mysqli_stmt_bind_param($check_stmt, "s", $email);
+        mysqli_stmt_execute($check_stmt);
+        mysqli_stmt_store_result($check_stmt);
+        
+        if (mysqli_stmt_num_rows($check_stmt) > 0) {
             $error = "Email already registered";
         } else {
-            // Insert new user
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $role = 'user';
+            // Check if username exists
+            $check_user_stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE username = ?");
             
-            $stmt = mysqli_prepare($conn, "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "ssss", $name, $email, $hashed_password, $role);
-            
-            if (mysqli_stmt_execute($stmt)) {
-                $success = "Registration successful! <a href='login.php'>Login here</a>";
-            } else {
-                $error = "Registration failed. Please try again.";
+            if (!$check_user_stmt) {
+                die("Prepare failed: " . mysqli_error($conn));
             }
+            
+            mysqli_stmt_bind_param($check_user_stmt, "s", $username);
+            mysqli_stmt_execute($check_user_stmt);
+            mysqli_stmt_store_result($check_user_stmt);
+            
+            if (mysqli_stmt_num_rows($check_user_stmt) > 0) {
+                $error = "Username already taken";
+            } else {
+                // Insert new user
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                
+                $stmt = mysqli_prepare($conn, "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)");
+                
+                if (!$stmt) {
+                    die("Prepare failed: " . mysqli_error($conn));
+                }
+                
+                mysqli_stmt_bind_param($stmt, "ssss", $username, $email, $hashed_password, $role);
+                
+                if (mysqli_stmt_execute($stmt)) {
+                    $success = "Registration successful!";
+                    // Clear form data
+                    $username = $email = '';
+                } else {
+                    $error = "Registration failed: " . mysqli_error($conn);
+                }
+                mysqli_stmt_close($stmt);
+            }
+            mysqli_stmt_close($check_user_stmt);
         }
-        mysqli_stmt_close($stmt);
+        mysqli_stmt_close($check_stmt);
     }
 }
 ?>
@@ -50,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register</title>
+    <title>Register - Book Review System</title>
     <style>
         * {
             margin: 0;
@@ -154,8 +189,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .input-group select {
-            width: 200px;
-            padding: 10px;
+            width: 100%;
+            padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 1rem;
@@ -194,6 +229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-link {
             text-align: center;
             margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
             color: #666;
         }
         
@@ -217,33 +254,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
         
         <?php if ($success): ?>
-            <div class="success"><?php echo htmlspecialchars($success); ?></div>
+            <div class="success"><?php echo $success; ?></div>
         <?php endif; ?>
         
         <form method="POST" action="">
             <div class="form-group">
-                <label>Full Name</label>
-                <input type="text" name="name" placeholder="Enter your full name" value="<?php echo htmlspecialchars($name); ?>" required>
+                <label>Username</label>
+                <input type="text" name="username" placeholder="Enter username" value="<?php echo htmlspecialchars($username ?? ''); ?>" required>
             </div>
             
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="Enter your email" value="<?php echo htmlspecialchars($email); ?>" required>
+                <input type="email" name="email" placeholder="Enter your email" value="<?php echo htmlspecialchars($email ?? ''); ?>" required>
             </div>
             
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" placeholder="Enter your password" required>
+                <input type="password" name="password" placeholder="Enter password (min 6 characters)" required>
             </div>
             
             <div class="form-group">
                 <label>Confirm Password</label>
-                <input type="password" name="confirm password" placeholder="Confirm your password" required>
+                <input type="password" name="confirm_password" placeholder="Confirm your password" required>
             </div>
             
             <div class="input-group">
                 <label for="role">Register As</label>
-                <select style="width: 200px" id="role" name="role" required>
+                <select id="role" name="role" required>
                     <option value="user" selected>User</option>
                     <option value="admin">Admin</option>
                 </select>
@@ -255,7 +292,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-link">
             Already have an account? <a href="login.php">Sign in here</a>
         </div>
-        
     </div>
 </body>
 </html>

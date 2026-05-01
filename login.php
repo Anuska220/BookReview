@@ -1,10 +1,15 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'database.php';
+
+// Check if connection exists
+if (!isset($conn) || !$conn) {
+    die("Database connection failed.");
+}
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
-    header("Location: dashboard.php");
+    header("Location: books_list.php");
     exit();
 }
 
@@ -19,7 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Email and password are required";
     } else {
         // Use prepared statement
-        $stmt = mysqli_prepare($conn, "SELECT id, name, email, password, role FROM users WHERE email = ?");
+        $stmt = mysqli_prepare($conn, "SELECT id, username, email, password FROM users WHERE email = ?");
+
+        if (!$stmt) {
+            die("SQL Error: " . mysqli_error($conn));
+        }
+
         mysqli_stmt_bind_param($stmt, "s", $email);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
@@ -31,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['user_role'] = $user['role'];
                 
-                header("Location: dashboard.php");
+                header("Location: index.php");
                 exit();
             } else {
                 $error = "Invalid password";
@@ -169,9 +179,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit">Login</button>
         </form>
         <p>Don't have an account? <a href="register.php">Register here</a></p>
-        <div class="back-home">
-            <a href="index.php">Back to Home</a>
-        </div>
     </div>
 </body>
 </html>
