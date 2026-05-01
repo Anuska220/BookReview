@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     book_id INT NOT NULL,
     user_id INT NOT NULL,
     rating INT CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE KEY unique_review (book_id, user_id)
@@ -44,9 +46,9 @@ INSERT INTO books (title, author, description, cover_image) VALUES
 ('Harry Potter', 'J.K. Rowling', 'The story of a young wizard and his friends at Hogwarts School of Witchcraft and Wizardry.', 'https://covers.openlibrary.org/b/id/8225278-L.jpg');
 
 -- Insert sample reviews
-INSERT INTO reviews (book_id, user_id, rating) VALUES
-(1, 1, 5),
-(2, 1, 5),
-(3, 1, 4),
-(4, 1, 5),
-(5, 1, 5);
+INSERT INTO reviews (book_id, user_id, rating,comment) VALUES
+(1, 1, 5, 'Amazing book! Really changed my perspective on money and investing.'),
+(2, 1, 5, 'A timeless classic. everyone should read this at least once.'),
+(3, 1, 4, 'A famous book that everyone should read one time.'),
+(4, 1, 5, 'Inspiring story about following your dreams.'),
+(5, 1, 5, 'Fantastic adventure! Bilbo is such a lovable character.');
