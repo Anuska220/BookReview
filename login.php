@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['user_role'] = $user['role'];
                 
-                header("Location: index.php");
+                header("Location: books_list.php");
                 exit();
             } else {
                 $error = "Invalid password";
